@@ -599,37 +599,34 @@
       </div>
     </div>
 
-    <!-- Register User Sheet -->
-    <div class="sheet-overlay" id="overlay-register">
-      <div class="sheet">
-        <div class="sheet-handle"></div>
-        <h2>Register User</h2>
-        <div class="field" id="reg-client-group" style="display:none;">
-          <label>Assign to Client (clId)</label>
-          <select id="reg-client"></select>
-        </div>
-        <div class="field">
-          <label>Full Name</label>
-          <input type="text" id="reg-name" placeholder="e.g. Ramesh Kumar">
-        </div>
-        <div class="field">
-          <label>Username</label>
-          <input type="text" id="reg-username" placeholder="e.g. ramesh">
-        </div>
-        <div class="field">
-          <label>Password</label>
-          <input type="password" id="reg-password" placeholder="Set password">
-        </div>
-        <div class="field">
-          <label>Role</label>
-          <select id="reg-role"></select>
-        </div>
-        <div class="sheet-actions">
-          <button class="btn btn-ghost" id="reg-cancel">Cancel</button>
-          <button class="btn btn-primary" id="reg-save">Create Account</button>
-        </div>
-      </div>
+    <!-- Register User Sheet (Clean - No Client ID selection) -->
+<div class="sheet-overlay" id="overlay-register">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2>Register User</h2>
+    
+    <div class="field">
+      <label>Full Name</label>
+      <input type="text" id="reg-name" placeholder="e.g. Ramesh Kumar">
     </div>
+    <div class="field">
+      <label>Username</label>
+      <input type="text" id="reg-username" placeholder="e.g. ramesh">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="reg-password" placeholder="Set password">
+    </div>
+    <div class="field">
+      <label>Role</label>
+      <select id="reg-role"></select>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="reg-cancel">Cancel</button>
+      <button class="btn btn-primary" id="reg-save">Create Account</button>
+    </div>
+  </div>
+</div>
 
     <!-- Add Plot Sheet -->
     <div class="sheet-overlay" id="overlay-plot">
