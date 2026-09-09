@@ -1,10 +1,29 @@
+// ---------- Users & auth (mock) ----------
+let users = [
+  { id: "U1001", fullName: "Ravi Patel",  role: "superadmin", email: "ravi@agro.com",   phone: "9876500000" },
+  { id: "U1002", fullName: "Anita Shah",  role: "admin",      email: "anita@agro.com",  phone: "9876500001" },
+  { id: "U1003", fullName: "Kiran Mehta", role: "user",       email: "kiran@agro.com",  phone: "9876500002" },
+  { id: "U1004", fullName: "Suresh Rao",  role: "user",       email: "suresh@agro.com", phone: "9876500003" },
+];
+
+const credentials = {
+  superadmin: { password: "super123", userId: "U1001" },
+  admin:      { password: "admin123", userId: "U1002" },
+  user:       { password: "user123",  userId: "U1003" },
+};
+
+let currentUser = null; // { id, fullName, role }
+
+const roleLabels = { superadmin: "Super Admin", admin: "Admin", user: "Normal User" };
+
 // ---------- Mock data, shaped exactly like the documented Device object ----------
+// ownerId ties a device to the Normal User who "owns" it, for data-scoping.
 let devices = [
-  { _id: "6123abcf51e4f9a1e0c12345", type: "Pump", name: "Pump - 1", hub: "Tarhadi Farm", plot: 1, mins: 15, online: true, on: false, batteryLevel: 87, voltages: { r: "219 V", y: "230 V", b: "213 V" }, current: "5 A", fault: true },
-  { _id: "6123abcf51e4f9a1e0c12346", type: "Pump", name: "Pump - 2", hub: "Farm House", plot: 1, mins: 15, online: false, on: false, batteryLevel: 50, voltages: { r: "219 V", y: "230 V", b: "213 V" }, current: "5 A", fault: true },
-  { _id: "6123abcf51e4f9a1e0c12347", type: "Pump", name: "Pump - 3", hub: "Green Acres", plot: 2, mins: 15, online: true, on: true, batteryLevel: 88, voltages: { r: "219 V", y: "230 V", b: "213 V" }, current: "5 A", fault: true },
-  { _id: "6123abcf51e4f9a1e0c12348", type: "Pump", name: "Pump - 4", hub: "Riverbend", plot: 2, mins: 15, online: true, on: true, batteryLevel: 60, voltages: { r: "219 V", y: "230 V", b: "213 V" }, current: "5 A", fault: true },
-  { _id: "6123abcf51e4f9a1e0c12349", type: "Valve", name: "Valve - 1", hub: "SL1", plot: 3, mins: 10, online: true, on: false, batteryLevel: null, voltages: null, current: null, fault: false },
+  { _id: "6123abcf51e4f9a1e0c12345", type: "Pump", name: "Pump - 1", hub: "Tarhadi Farm", plot: 1, mins: 15, online: true, on: false, batteryLevel: 87, voltages: { r: "219 V", y: "230 V", b: "213 V" }, current: "5 A", fault: true, ownerId: "U1003" },
+  { _id: "6123abcf51e4f9a1e0c12346", type: "Pump", name: "Pump - 2", hub: "Farm House", plot: 1, mins: 15, online: false, on: false, batteryLevel: 50, voltages: { r: "219 V", y: "230 V", b: "213 V" }, current: "5 A", fault: true, ownerId: "U1003" },
+  { _id: "6123abcf51e4f9a1e0c12347", type: "Pump", name: "Pump - 3", hub: "Green Acres", plot: 2, mins: 15, online: true, on: true, batteryLevel: 88, voltages: { r: "219 V", y: "230 V", b: "213 V" }, current: "5 A", fault: true, ownerId: "U1004" },
+  { _id: "6123abcf51e4f9a1e0c12348", type: "Pump", name: "Pump - 4", hub: "Riverbend", plot: 2, mins: 15, online: true, on: true, batteryLevel: 60, voltages: { r: "219 V", y: "230 V", b: "213 V" }, current: "5 A", fault: true, ownerId: "U1004" },
+  { _id: "6123abcf51e4f9a1e0c12349", type: "Valve", name: "Valve - 1", hub: "SL1", plot: 3, mins: 10, online: true, on: false, batteryLevel: null, voltages: null, current: null, fault: false, ownerId: "U1003" },
 ];
 
 let schedules = [
@@ -44,6 +63,10 @@ function plotList(){
   const plots = [...new Set(devices.map(d => d.plot).filter(p => p != null))].sort((a,b)=>a-b);
   return plots;
 }
+function canManagePlots(){
+  return currentUser && (currentUser.role === "admin" || currentUser.role === "superadmin");
+}
+
 function renderPills(){
   const plots = plotList();
   let html = `<button class="pill ${activeFilter==='All'?'active':''}" data-filter="All">All</button>`;
@@ -53,15 +76,26 @@ function renderPills(){
     const key = "plot:"+p;
     html += `<button class="pill ${activeFilter===key?'active':''}" data-filter="${key}">Plot-${p}</button>`;
   });
-  html += `<button class="pill add" id="pill-add" title="Add plot">+</button>`;
+  if (canManagePlots()){
+    html += `<button class="pill add" id="pill-add" title="Add plot">+</button>`;
+  }
   plotEl.innerHTML = html;
   plotEl.querySelectorAll(".pill[data-filter]").forEach(btn=>{
     btn.addEventListener("click", ()=>{ activeFilter = btn.dataset.filter; renderPills(); renderDevices(); });
   });
-  document.getElementById("pill-add").addEventListener("click", ()=> openSheet("overlay-plot"));
+  const addPill = document.getElementById("pill-add");
+  if (addPill) addPill.addEventListener("click", ()=> openSheet("overlay-plot"));
 }
 
 // ---------- Device rendering ----------
+function scopedDevices(){
+  // Normal users only ever see devices they own; admin/superadmin see everything.
+  if (currentUser && currentUser.role === "user"){
+    return devices.filter(d => d.ownerId === currentUser.id);
+  }
+  return devices;
+}
+
 function deviceMatchesFilter(d){
   if (activeFilter === "All") return true;
   if (activeFilter === "Pump" || activeFilter === "Valve") return d.type === activeFilter;
@@ -127,7 +161,7 @@ function deviceCard(d){
 
 function renderDevices(){
   const list = document.getElementById("device-list");
-  const filtered = devices.filter(deviceMatchesFilter);
+  const filtered = scopedDevices().filter(deviceMatchesFilter);
   if (filtered.length === 0){
     list.innerHTML = `
       <div class="empty-state">
@@ -234,6 +268,7 @@ navButtons.forEach(btn=>{
       plotEl.style.display = "none";
       showToast("Activity screen — not wired up in this prototype");
     }
+    refreshFabVisibility();
   });
 });
 
@@ -348,7 +383,148 @@ document.getElementById("sch-save").addEventListener("click", ()=>{
   document.getElementById("sch-title").value = "";
 });
 
+// ---------- Floating add-control button ----------
+const fab = document.getElementById("fab-add-control");
+fab.addEventListener("click", ()=> openSheet("overlay-control"));
+
+function refreshFabVisibility(){
+  const manualVisible = document.getElementById("screen-manual").classList.contains("visible");
+  fab.style.display = (manualVisible && canManagePlots()) ? "flex" : "none";
+}
+
+// ---------- Account sheet ----------
+document.getElementById("btn-account").addEventListener("click", ()=>{
+  document.getElementById("acct-initials").textContent =
+    currentUser.fullName.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+  document.getElementById("acct-name").textContent = currentUser.fullName;
+  const roleBadge = document.getElementById("acct-role");
+  roleBadge.textContent = roleLabels[currentUser.role];
+  roleBadge.className = "role-badge " + currentUser.role;
+
+  const scopeNote = document.getElementById("scope-note");
+  const lookupSection = document.getElementById("lookup-section");
+  const registerSection = document.getElementById("register-section");
+
+  if (currentUser.role === "superadmin"){
+    scopeNote.textContent = "As Super Admin, you can view any user's data by ID and register Super Admin, Admin, or Normal User accounts.";
+    lookupSection.style.display = "block";
+    registerSection.style.display = "block";
+  } else if (currentUser.role === "admin"){
+    scopeNote.textContent = "As Admin, you can view any user's data by ID and register new Normal User accounts. You can also add plots.";
+    lookupSection.style.display = "block";
+    registerSection.style.display = "block";
+  } else {
+    scopeNote.textContent = "You're viewing only your own devices. Contact an admin for account or plot changes.";
+    lookupSection.style.display = "none";
+    registerSection.style.display = "none";
+  }
+  document.getElementById("lookup-id").value = "";
+  document.getElementById("lookup-result").innerHTML = "";
+  openSheet("overlay-account");
+});
+
+document.getElementById("btn-logout").addEventListener("click", ()=>{
+  closeSheet("overlay-account");
+  currentUser = null;
+  document.getElementById("login-username").value = "";
+  document.getElementById("login-password").value = "";
+  document.getElementById("login-error").classList.remove("show");
+  document.getElementById("login-overlay").style.display = "flex";
+});
+
+// ---------- Lookup user data by ID (admin / superadmin) ----------
+document.getElementById("lookup-btn").addEventListener("click", ()=>{
+  const raw = document.getElementById("lookup-id").value.trim().toUpperCase();
+  const result = document.getElementById("lookup-result");
+  if (!raw){ result.innerHTML = ""; return; }
+  const found = users.find(u => u.id.toUpperCase() === raw);
+  if (!found){
+    result.innerHTML = `<div class="lookup-result-card">No user found with ID "${raw}".</div>`;
+    return;
+  }
+  const ownedDevices = devices.filter(d => d.ownerId === found.id);
+  result.innerHTML = `
+    <div class="lookup-result-card">
+      <div class="lr-name">${found.fullName} <span class="role-badge ${found.role}" style="margin-left:4px;">${roleLabels[found.role]}</span></div>
+      <div class="lr-row">ID: ${found.id}</div>
+      <div class="lr-row">${found.email} · ${found.phone}</div>
+      <div class="lr-row">${ownedDevices.length} device(s): ${ownedDevices.map(d=>d.name).join(", ") || "none"}</div>
+    </div>`;
+});
+
+// ---------- Register user (superadmin: all roles / admin: normal user only) ----------
+document.getElementById("btn-open-register").addEventListener("click", ()=>{
+  const roleSelect = document.getElementById("reg-role");
+  if (currentUser.role === "superadmin"){
+    roleSelect.innerHTML = `
+      <option value="user">Normal User</option>
+      <option value="admin">Admin</option>
+      <option value="superadmin">Super Admin</option>`;
+  } else {
+    roleSelect.innerHTML = `<option value="user">Normal User</option>`;
+  }
+  closeSheet("overlay-account");
+  openSheet("overlay-register");
+});
+document.getElementById("reg-cancel").addEventListener("click", ()=> closeSheet("overlay-register"));
+
+document.getElementById("reg-save").addEventListener("click", ()=>{
+  const fullName = document.getElementById("reg-name").value.trim();
+  const email = document.getElementById("reg-email").value.trim();
+  const phone = document.getElementById("reg-phone").value.trim();
+  const password = document.getElementById("reg-password").value;
+  const role = document.getElementById("reg-role").value;
+
+  if (!fullName || !email || !password){
+    showToast("Full name, email, and password are required");
+    return;
+  }
+  // Admins may only ever create Normal User accounts, even if the form were tampered with.
+  const finalRole = currentUser.role === "admin" ? "user" : role;
+
+  const newUser = {
+    id: "U" + (1000 + users.length + 1),
+    fullName, email, phone, role: finalRole,
+  };
+  users.push(newUser);
+  showToast(`${roleLabels[finalRole]} "${fullName}" registered (ID ${newUser.id})`);
+  closeSheet("overlay-register");
+
+  ["reg-name","reg-email","reg-phone","reg-password"].forEach(id => document.getElementById(id).value = "");
+});
+
+// ---------- Login ----------
+function attemptLogin(){
+  const username = document.getElementById("login-username").value.trim().toLowerCase();
+  const password = document.getElementById("login-password").value;
+  const errorBox = document.getElementById("login-error");
+
+  const cred = credentials[username];
+  if (!cred || cred.password !== password){
+    errorBox.textContent = "Incorrect username or password.";
+    errorBox.classList.add("show");
+    return;
+  }
+  const account = users.find(u => u.id === cred.userId);
+  currentUser = { id: account.id, fullName: account.fullName, role: account.role };
+  errorBox.classList.remove("show");
+  document.getElementById("login-overlay").style.display = "none";
+
+  // Reset to Manual Control on every fresh login
+  navButtons.forEach(b=>b.classList.remove("active"));
+  document.querySelector('.nav-btn[data-nav="manual"]').classList.add("active");
+  document.getElementById("screen-manual").classList.add("visible");
+  document.getElementById("screen-schedule").classList.remove("visible");
+  heroTitle.textContent = "Manual Control";
+  plotEl.style.display = "flex";
+
+  renderPills();
+  renderDevices();
+  refreshFabVisibility();
+  showToast(`Signed in as ${roleLabels[currentUser.role]}`);
+}
+document.getElementById("login-submit").addEventListener("click", attemptLogin);
+document.getElementById("login-password").addEventListener("keydown", (e)=>{ if (e.key === "Enter") attemptLogin(); });
+
 // ---------- Init ----------
-renderPills();
-renderDevices();
 renderSchedules();
