@@ -117,27 +117,6 @@ const plotEl = document.getElementById("pills");
 const heroTitle = document.getElementById("hero-title");
 const heroDate = document.getElementById("hero-date");
 
-// ---------- Simulated MQTT Logger Console ----------
-function logMqtt(direction, topic, payload) {
-  const logStream = document.getElementById("mqtt-log-stream");
-  if (!logStream) return;
-  
-  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  const isOut = direction === "PUB";
-  const color = isOut ? "#ffa852" : "#59c7f3";
-
-  const entry = document.createElement("div");
-  entry.style.marginTop = "3px";
-  entry.innerHTML = `
-    <span style="color:#888;">[${time}]</span>
-    <strong style="color:${color};">[${direction}]</strong>
-    <span style="color:#d6edd8;">${topic}</span>
-    <span style="color:#f2f2f2;">${JSON.stringify(payload)}</span>
-  `;
-
-  logStream.prepend(entry);
-}
-
 // Clock
 function setClock(){
   const now = new Date();
@@ -197,7 +176,6 @@ function canDeletePlot(plot) {
   return false;
 }
 
-// ---------- Deletion Handlers ----------
 function deleteDevice(deviceId) {
   const idx = devices.findIndex(d => d._id === deviceId);
   if (idx === -1) return;
@@ -355,7 +333,6 @@ function deviceCard(d) {
         <div style="line-height: 1.3;">
           <div style="font-size: 11px; font-weight:700; color:var(--sky); font-family:monospace;">${d.brokerClId}</div>
           <div style="font-size: 9.5px; color:var(--muted); font-family:monospace;">CL: ${d.clId} | DV: ${d.dvId}</div>
-          <div style="font-size: 9px; color:#859086; font-family:monospace;">sub: device/${d.clId}/${d.dvId}/#</div>
         </div>
         ${d.fault ? `<span class="fault-tag">FAULT</span>` : `<span class="id-tag" style="color:var(--primary); font-weight:bold;">Active</span>`}
       </div>
@@ -384,28 +361,31 @@ function renderDevices() {
   });
 }
 
-// ---------- Live MQTT Simulation on Toggle ----------
 function toggleDevice(id) {
   const d = devices.find(x => x._id === id);
   if (!d || !d.online) return;
 
-  const targetState = !d.on;
-  const publishTopic = `backend/${d.clId}/${d.dvId}/cmd`;
-  const publishPayload = { action: "SET_POWER", state: targetState ? "ON" : "OFF", timestamp: Date.now() };
-  logMqtt("PUB", publishTopic, publishPayload);
-
-  d.on = targetState;
+  d.on = !d.on;
   renderDevices();
-  showToast(`Command sent: ${targetState ? "ON" : "OFF"}`);
-
-  setTimeout(() => {
-    const responseTopic = `device/${d.clId}/${d.dvId}/cmd/result`;
-    const responsePayload = { status: "SUCCESS", state: targetState ? "ON" : "OFF", dvId: d.dvId };
-    logMqtt("SUB", responseTopic, responsePayload);
-  }, 450);
+  showToast(`${d.name} turned ${d.on ? "ON" : "OFF"}`);
 }
 
-// ---------- Management Lists (Users & Plots) ----------
+// ---------- Live Search & Management Lists ----------
+let userSearchTerm = "";
+let plotSearchTerm = "";
+
+const searchUsersInput = document.getElementById("search-users-input");
+searchUsersInput?.addEventListener("input", (e) => {
+  userSearchTerm = e.target.value.toLowerCase().trim();
+  renderUserManagementList();
+});
+
+const searchPlotsInput = document.getElementById("search-plots-input");
+searchPlotsInput?.addEventListener("input", (e) => {
+  plotSearchTerm = e.target.value.toLowerCase().trim();
+  renderPlotsManagementList();
+});
+
 function renderUserManagementList() {
   const container = document.getElementById("user-management-list");
   if (!container) return;
@@ -417,8 +397,17 @@ function renderUserManagementList() {
     manageableUsers = users.filter(u => u.clId === currentUser.clId && u.role === "user");
   }
 
+  if (userSearchTerm) {
+    manageableUsers = manageableUsers.filter(u =>
+      u.fullName.toLowerCase().includes(userSearchTerm) ||
+      u.username.toLowerCase().includes(userSearchTerm) ||
+      u.id.toLowerCase().includes(userSearchTerm) ||
+      (u.clId && u.clId.toLowerCase().includes(userSearchTerm))
+    );
+  }
+
   if (manageableUsers.length === 0) {
-    container.innerHTML = `<div style="font-size:12px; color:var(--muted); padding:4px 0;">No manageable users found.</div>`;
+    container.innerHTML = `<div style="font-size:12px; color:var(--muted); padding:4px 0;">No matching users found.</div>`;
     return;
   }
 
@@ -426,7 +415,7 @@ function renderUserManagementList() {
     <div style="display:flex; justify-content:space-between; align-items:center; background:var(--paper); padding:8px 12px; border-radius:10px; border:1px solid var(--hairline);">
       <div>
         <div style="font-weight:700; font-size:12.5px;">${u.fullName} <span class="role-badge ${u.role}">${u.role}</span></div>
-        <div style="font-size:11px; color:var(--muted);">${u.clId || 'Global'} · @${u.username}</div>
+        <div style="font-size:11px; color:var(--muted);">${u.clId || 'Global'} · @${u.username} (${u.id})</div>
       </div>
       <button class="sched-del" data-delete-user="${u.id}" style="width:26px; height:26px;">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
@@ -443,9 +432,18 @@ function renderPlotsManagementList() {
   const container = document.getElementById("plots-management-list");
   if (!container) return;
 
-  const manageablePlots = scopedPlots();
+  let manageablePlots = scopedPlots();
+
+  if (plotSearchTerm) {
+    manageablePlots = manageablePlots.filter(p =>
+      p.name.toLowerCase().includes(plotSearchTerm) ||
+      String(p.plotId).includes(plotSearchTerm) ||
+      p.clId.toLowerCase().includes(plotSearchTerm)
+    );
+  }
+
   if (manageablePlots.length === 0) {
-    container.innerHTML = `<div style="font-size:12px; color:var(--muted); padding:4px 0;">No plots created yet.</div>`;
+    container.innerHTML = `<div style="font-size:12px; color:var(--muted); padding:4px 0;">No matching plots found.</div>`;
     return;
   }
 
@@ -809,6 +807,11 @@ document.getElementById("btn-account").addEventListener("click", () => {
   const scopeNote = document.getElementById("scope-note");
   const manageUserSec = document.getElementById("manage-users-section");
   const managePlotSec = document.getElementById("manage-plots-section");
+
+  userSearchTerm = "";
+  plotSearchTerm = "";
+  if (searchUsersInput) searchUsersInput.value = "";
+  if (searchPlotsInput) searchPlotsInput.value = "";
 
   if (currentUser.role === "superadmin") {
     scopeNote.textContent = `Super Admin (${currentUser.brokerId}) — Global access across all client farms.`;
