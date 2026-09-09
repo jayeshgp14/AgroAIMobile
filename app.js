@@ -465,25 +465,28 @@ function renderPlotsManagementList() {
 }
 
 // ---------- Registration Modal ----------
+// Helper to generate a new Client ID when a Super Admin registers an Admin/User
+function generateClientId() {
+  return "CL-" + generateRandomCode(8);
+}
+
+// ---------- Registration Modal Logic (No clId field) ----------
 function initRegisterModal() {
-  const clientGroup = document.getElementById("reg-client-group");
-  const clientSelect = document.getElementById("reg-client");
   const roleSelect = document.getElementById("reg-role");
 
   if (currentUser.role === "superadmin") {
-    clientGroup.style.display = "block";
-    clientSelect.innerHTML = clients.map(c => `<option value="${c.clId}">${c.name} (${c.clId})</option>`).join("");
     roleSelect.innerHTML = `
       <option value="user">Normal User</option>
       <option value="admin">Admin</option>
     `;
   } else {
-    clientGroup.style.display = "none";
+    // Farm Admin can only register Normal Users
     roleSelect.innerHTML = `<option value="user">Normal User</option>`;
   }
 }
 
 document.getElementById("reg-cancel").addEventListener("click", () => closeSheet("overlay-register"));
+
 document.getElementById("reg-save").addEventListener("click", () => {
   const name = document.getElementById("reg-name").value.trim();
   const username = document.getElementById("reg-username").value.trim().toLowerCase();
@@ -499,9 +502,21 @@ document.getElementById("reg-save").addEventListener("click", () => {
     return;
   }
 
-  const assignedClientId = (currentUser.role === "superadmin")
-    ? document.getElementById("reg-client").value
-    : currentUser.clId;
+  // Determine client ID automatically without user manual input:
+  let assignedClientId;
+  if (currentUser.role === "admin") {
+    // Farm Admin assigns the user directly to their own farm/client
+    assignedClientId = currentUser.clId;
+  } else {
+    // Super Admin: automatically generates a dedicated client ID for a new tenant
+    assignedClientId = generateClientId();
+    // Record the newly auto-generated client
+    clients.push({
+      clId: assignedClientId,
+      name: `${name}'s Farm`,
+      brokerId: currentUser.brokerId
+    });
+  }
 
   const newUser = {
     id: "U" + (1000 + users.length + 1),
@@ -519,6 +534,7 @@ document.getElementById("reg-save").addEventListener("click", () => {
   closeSheet("overlay-register");
   renderUserManagementList();
 
+  // Reset form inputs
   document.getElementById("reg-name").value = "";
   document.getElementById("reg-username").value = "";
   document.getElementById("reg-password").value = "";
