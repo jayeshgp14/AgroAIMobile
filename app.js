@@ -18,6 +18,10 @@ function generateBrokerClientId(clientId, sequenceNum) {
   return `${clientId}-DV${seq}`;
 }
 
+function generateClientId() {
+  return "CL-" + generateRandomCode(8);
+}
+
 // ---------- Tenant State ----------
 let clients = [
   { clId: "CL-8F3K7M2Q", name: "Green Valley Farm", brokerId: "BRK-01" },
@@ -465,12 +469,6 @@ function renderPlotsManagementList() {
 }
 
 // ---------- Registration Modal ----------
-// Helper to generate a new Client ID when a Super Admin registers an Admin/User
-function generateClientId() {
-  return "CL-" + generateRandomCode(8);
-}
-
-// ---------- Registration Modal Logic (No clId field) ----------
 function initRegisterModal() {
   const roleSelect = document.getElementById("reg-role");
 
@@ -480,13 +478,11 @@ function initRegisterModal() {
       <option value="admin">Admin</option>
     `;
   } else {
-    // Farm Admin can only register Normal Users
     roleSelect.innerHTML = `<option value="user">Normal User</option>`;
   }
 }
 
 document.getElementById("reg-cancel").addEventListener("click", () => closeSheet("overlay-register"));
-
 document.getElementById("reg-save").addEventListener("click", () => {
   const name = document.getElementById("reg-name").value.trim();
   const username = document.getElementById("reg-username").value.trim().toLowerCase();
@@ -502,15 +498,11 @@ document.getElementById("reg-save").addEventListener("click", () => {
     return;
   }
 
-  // Determine client ID automatically without user manual input:
   let assignedClientId;
   if (currentUser.role === "admin") {
-    // Farm Admin assigns the user directly to their own farm/client
     assignedClientId = currentUser.clId;
   } else {
-    // Super Admin: automatically generates a dedicated client ID for a new tenant
     assignedClientId = generateClientId();
-    // Record the newly auto-generated client
     clients.push({
       clId: assignedClientId,
       name: `${name}'s Farm`,
@@ -534,7 +526,6 @@ document.getElementById("reg-save").addEventListener("click", () => {
   closeSheet("overlay-register");
   renderUserManagementList();
 
-  // Reset form inputs
   document.getElementById("reg-name").value = "";
   document.getElementById("reg-username").value = "";
   document.getElementById("reg-password").value = "";
