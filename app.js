@@ -1,35 +1,115 @@
-// ---------- Users & auth (mock) ----------
-let users = [
-  { id: "U1001", fullName: "Ravi Patel",  role: "superadmin", email: "ravi@agro.com",   phone: "9876500000" },
-  { id: "U1002", fullName: "Anita Shah",  role: "admin",      email: "anita@agro.com",  phone: "9876500001" },
-  { id: "U1003", fullName: "Kiran Mehta", role: "user",       email: "kiran@agro.com",  phone: "9876500002" },
-  { id: "U1004", fullName: "Suresh Rao",  role: "user",       email: "suresh@agro.com", phone: "9876500003" },
+// ---------- ID Generator Helpers (matching Java logic) ----------
+const CHARSET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+
+function generateRandomCode(len = 8) {
+  let res = "";
+  for (let i = 0; i < len; i++) {
+    res += CHARSET.charAt(Math.floor(Math.random() * CHARSET.length));
+  }
+  return res;
+}
+
+function generateDeviceId() {
+  return "DV-" + generateRandomCode(8);
+}
+
+function generateBrokerClientId(clientId, sequenceNum) {
+  const seq = String(sequenceNum).padStart(2, "0");
+  return `${clientId}-DV${seq}`;
+}
+
+// ---------- Tenant State ----------
+let clients = [
+  { clId: "CL-8F3K7M2Q", name: "Green Valley Farm", brokerId: "BRK-01" },
+  { clId: "CL-9P4W2Y7X", name: "Sunrise Estate", brokerId: "BRK-01" }
 ];
 
-const credentials = {
-  superadmin: { password: "super123", userId: "U1001" },
-  admin:      { password: "admin123", userId: "U1002" },
-  user:       { password: "user123",  userId: "U1003" },
+let plots = [
+  { plotId: 1, name: "Plot 1 (North)", clId: "CL-8F3K7M2Q" },
+  { plotId: 2, name: "Plot 2 (South)", clId: "CL-8F3K7M2Q" },
+  { plotId: 3, name: "Plot 3 (Polyhouse)", clId: "CL-8F3K7M2Q" },
+  { plotId: 1, name: "Sunrise Plot 1", clId: "CL-9P4W2Y7X" }
+];
+
+let users = [
+  { id: "U1001", fullName: "Ravi Patel",  username: "superadmin", role: "superadmin", brokerId: "BRK-01", clId: null },
+  { id: "U1002", fullName: "Anita Shah",  username: "admin",      role: "admin",      brokerId: "BRK-01", clId: "CL-8F3K7M2Q" },
+  { id: "U1003", fullName: "Kiran Mehta", username: "user",       role: "user",       brokerId: "BRK-01", clId: "CL-8F3K7M2Q" },
+  { id: "U1004", fullName: "Suresh Rao",  username: "suresh",     role: "user",       brokerId: "BRK-01", clId: "CL-9P4W2Y7X" }
+];
+
+let credentials = {
+  superadmin: "super123",
+  admin:      "admin123",
+  user:       "user123",
+  suresh:     "user123"
 };
 
-let currentUser = null; // { id, fullName, role }
-
+let currentUser = null;
 const roleLabels = { superadmin: "Super Admin", admin: "Admin", user: "Normal User" };
 
-// ---------- Mock data, shaped exactly like the documented Device object ----------
-// ownerId ties a device to the Normal User who "owns" it, for data-scoping.
 let devices = [
-  { _id: "6123abcf51e4f9a1e0c12345", type: "Pump", name: "Pump - 1", hub: "Tarhadi Farm", plot: 1, mins: 15, online: true, on: false, batteryLevel: 87, voltages: { r: "219 V", y: "230 V", b: "213 V" }, current: "5 A", fault: true, ownerId: "U1003" },
-  { _id: "6123abcf51e4f9a1e0c12346", type: "Pump", name: "Pump - 2", hub: "Farm House", plot: 1, mins: 15, online: false, on: false, batteryLevel: 50, voltages: { r: "219 V", y: "230 V", b: "213 V" }, current: "5 A", fault: true, ownerId: "U1003" },
-  { _id: "6123abcf51e4f9a1e0c12347", type: "Pump", name: "Pump - 3", hub: "Green Acres", plot: 2, mins: 15, online: true, on: true, batteryLevel: 88, voltages: { r: "219 V", y: "230 V", b: "213 V" }, current: "5 A", fault: true, ownerId: "U1004" },
-  { _id: "6123abcf51e4f9a1e0c12348", type: "Pump", name: "Pump - 4", hub: "Riverbend", plot: 2, mins: 15, online: true, on: true, batteryLevel: 60, voltages: { r: "219 V", y: "230 V", b: "213 V" }, current: "5 A", fault: true, ownerId: "U1004" },
-  { _id: "6123abcf51e4f9a1e0c12349", type: "Valve", name: "Valve - 1", hub: "SL1", plot: 3, mins: 10, online: true, on: false, batteryLevel: null, voltages: null, current: null, fault: false, ownerId: "U1003" },
+  {
+    _id: "dev_01",
+    clId: "CL-8F3K7M2Q",
+    dvId: "DV-2K7N5X9P",
+    brokerClId: "CL-8F3K7M2Q-DV01",
+    brokerId: "BRK-01",
+    ownerId: "U1003",
+    type: "Pump",
+    name: "Pump - 1",
+    hub: "Green Valley Farm",
+    plot: 1,
+    mins: 15,
+    online: true,
+    on: false,
+    batteryLevel: 87,
+    voltages: { r: "219 V", y: "230 V", b: "213 V" },
+    current: "5 A",
+    fault: false
+  },
+  {
+    _id: "dev_02",
+    clId: "CL-8F3K7M2Q",
+    dvId: "DV-9X1B4Z7L",
+    brokerClId: "CL-8F3K7M2Q-DV02",
+    brokerId: "BRK-01",
+    ownerId: "U1003",
+    type: "Valve",
+    name: "Valve - 1",
+    hub: "Green Valley Farm",
+    plot: 3,
+    mins: 10,
+    online: true,
+    on: false,
+    batteryLevel: null,
+    voltages: null,
+    current: null,
+    fault: false
+  },
+  {
+    _id: "dev_03",
+    clId: "CL-9P4W2Y7X",
+    dvId: "DV-4M8P3Q5T",
+    brokerClId: "CL-9P4W2Y7X-DV01",
+    brokerId: "BRK-01",
+    ownerId: "U1004",
+    type: "Pump",
+    name: "Submersible Pump",
+    hub: "Sunrise Estate",
+    plot: 1,
+    mins: 20,
+    online: true,
+    on: true,
+    batteryLevel: 92,
+    voltages: { r: "220 V", y: "225 V", b: "222 V" },
+    current: "4.8 A",
+    fault: false
+  }
 ];
 
 let schedules = [
-  { _id: "64ab12f3c9f1f1001a2b3c4d", deviceId: devices[0]._id, deviceType: "Pump", title: "Plot 2 / Pump", farm: "Plot 2", plot: 2, status: "Postponed", startAt: "2025-12-14T18:47:00", endAt: "2025-12-14T18:49:00", durationMin: 25, meta: { notes: "Temperature Tank - 3" }, progress: 45 },
-  { _id: "64ab12f3c9f1f1001a2b3c4e", deviceId: devices[2]._id, deviceType: "Pump", title: "Plot 1 / Pump", farm: "Plot 1", plot: 1, status: "Postponed", startAt: "2025-12-14T17:12:00", endAt: "2025-12-14T18:49:00", durationMin: 25, meta: { notes: "Temperature Tank - 3" }, progress: 30 },
-  { _id: "64ab12f3c9f1f1001a2b3c4f", deviceId: devices[3]._id, deviceType: "Pump", title: "Plot 2 / Pump", farm: "Plot 2", plot: 2, status: "Upcoming", startAt: "2025-12-14T19:29:00", endAt: "2025-12-14T20:49:00", durationMin: 20, meta: { notes: "Temperature Tank - 3" }, progress: 0 },
+  { _id: "sch_01", deviceId: "dev_01", deviceType: "Pump", title: "Plot 1 / Pump", farm: "Green Valley", plot: 1, status: "Postponed", startAt: "2026-09-09T18:47:00", endAt: "2026-09-09T19:12:00", durationMin: 25, meta: { notes: "Tank Fertigation" }, progress: 45 }
 ];
 
 let activeFilter = "All";
@@ -37,19 +117,28 @@ const plotEl = document.getElementById("pills");
 const heroTitle = document.getElementById("hero-title");
 const heroDate = document.getElementById("hero-date");
 
-function fmtTime(iso){
-  const d = new Date(iso);
-  let h = d.getHours(), m = d.getMinutes();
-  const ap = h >= 12 ? "pm" : "am";
-  h = h % 12; if (h === 0) h = 12;
-  return `${(h+"").padStart(2,"0")}:${(m+"").padStart(2,"0")} ${ap}`;
-}
-function fmtDate(iso){
-  const d = new Date(iso);
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  return `${months[d.getMonth()]}-${(d.getDate()+"").padStart(2,"0")}`;
+// ---------- Simulated MQTT Logger Console ----------
+function logMqtt(direction, topic, payload) {
+  const logStream = document.getElementById("mqtt-log-stream");
+  if (!logStream) return;
+  
+  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const isOut = direction === "PUB";
+  const color = isOut ? "#ffa852" : "#59c7f3";
+
+  const entry = document.createElement("div");
+  entry.style.marginTop = "3px";
+  entry.innerHTML = `
+    <span style="color:#888;">[${time}]</span>
+    <strong style="color:${color};">[${direction}]</strong>
+    <span style="color:#d6edd8;">${topic}</span>
+    <span style="color:#f2f2f2;">${JSON.stringify(payload)}</span>
+  `;
+
+  logStream.prepend(entry);
 }
 
+// Clock
 function setClock(){
   const now = new Date();
   document.getElementById("clock").textContent =
@@ -58,73 +147,184 @@ function setClock(){
 }
 setClock(); setInterval(setClock, 30000);
 
-// ---------- Filter pills ----------
-function plotList(){
-  const plots = [...new Set(devices.map(d => d.plot).filter(p => p != null))].sort((a,b)=>a-b);
-  return plots;
+// ---------- Scoping Rules ----------
+function scopedDevices() {
+  if (!currentUser) return [];
+  if (currentUser.role === "superadmin") {
+    return devices.filter(d => d.brokerId === currentUser.brokerId);
+  }
+  if (currentUser.role === "admin") {
+    return devices.filter(d => d.clId === currentUser.clId);
+  }
+  return devices.filter(d => d.clId === currentUser.clId && d.ownerId === currentUser.id);
 }
-function canManagePlots(){
+
+function scopedPlots() {
+  if (!currentUser) return [];
+  if (currentUser.role === "superadmin") return plots;
+  return plots.filter(p => p.clId === currentUser.clId);
+}
+
+function canManageResources() {
   return currentUser && (currentUser.role === "admin" || currentUser.role === "superadmin");
 }
 
-function renderPills(){
-  const plots = plotList();
+// ---------- Deletion Permissions ----------
+function canDeleteUser(targetUser) {
+  if (!currentUser || !targetUser) return false;
+  if (targetUser.id === currentUser.id) return false;
+
+  if (currentUser.role === "superadmin") {
+    return targetUser.role === "admin" || targetUser.role === "user";
+  }
+  if (currentUser.role === "admin") {
+    return targetUser.role === "user" && targetUser.clId === currentUser.clId;
+  }
+  return false;
+}
+
+function canDeleteDevice(device) {
+  if (!currentUser) return false;
+  if (currentUser.role === "superadmin") return true;
+  if (currentUser.role === "admin") return device.clId === currentUser.clId;
+  return false;
+}
+
+function canDeletePlot(plot) {
+  if (!currentUser) return false;
+  if (currentUser.role === "superadmin") return true;
+  if (currentUser.role === "admin") return plot.clId === currentUser.clId;
+  return false;
+}
+
+// ---------- Deletion Handlers ----------
+function deleteDevice(deviceId) {
+  const idx = devices.findIndex(d => d._id === deviceId);
+  if (idx === -1) return;
+  const d = devices[idx];
+
+  if (!canDeleteDevice(d)) {
+    showToast("Unauthorized to delete this device.");
+    return;
+  }
+
+  devices.splice(idx, 1);
+  renderDevices();
+  renderPills();
+  showToast(`Deleted ${d.name} (${d.brokerClId})`);
+}
+
+function deletePlot(plotId, clId) {
+  const idx = plots.findIndex(p => p.plotId === plotId && p.clId === clId);
+  if (idx === -1) return;
+  const targetPlot = plots[idx];
+
+  if (!canDeletePlot(targetPlot)) {
+    showToast("Unauthorized to delete this plot.");
+    return;
+  }
+
+  devices.forEach(d => {
+    if (d.clId === clId && d.plot === plotId) d.plot = null;
+  });
+
+  plots.splice(idx, 1);
+  if (activeFilter === "plot:" + plotId) activeFilter = "All";
+  renderPills();
+  renderDevices();
+  renderPlotsManagementList();
+  showToast(`Deleted Plot ${plotId}`);
+}
+
+function deleteUser(userId) {
+  const idx = users.findIndex(u => u.id === userId);
+  if (idx === -1) return;
+  const targetUser = users[idx];
+
+  if (!canDeleteUser(targetUser)) {
+    showToast("Unauthorized to delete this user.");
+    return;
+  }
+
+  devices.forEach(d => {
+    if (d.ownerId === targetUser.id) d.ownerId = null;
+  });
+
+  delete credentials[targetUser.username];
+  users.splice(idx, 1);
+  renderUserManagementList();
+  renderDevices();
+  showToast(`Deleted account: ${targetUser.fullName}`);
+}
+
+// ---------- Filter Pills ----------
+function renderPills() {
+  const currentPlots = scopedPlots();
   let html = `<button class="pill ${activeFilter==='All'?'active':''}" data-filter="All">All</button>`;
   html += `<button class="pill ${activeFilter==='Pump'?'active':''}" data-filter="Pump">Pump</button>`;
   html += `<button class="pill ${activeFilter==='Valve'?'active':''}" data-filter="Valve">Valve</button>`;
-  plots.forEach(p => {
-    const key = "plot:"+p;
-    html += `<button class="pill ${activeFilter===key?'active':''}" data-filter="${key}">Plot-${p}</button>`;
+
+  currentPlots.forEach(p => {
+    const key = "plot:" + p.plotId;
+    html += `<button class="pill ${activeFilter===key?'active':''}" data-filter="${key}">Plot-${p.plotId}</button>`;
   });
-  if (canManagePlots()){
-    html += `<button class="pill add" id="pill-add" title="Add plot">+</button>`;
+
+  if (canManageResources()) {
+    html += `<button class="pill add" id="pill-add" title="Add Plot">+</button>`;
   }
+
   plotEl.innerHTML = html;
-  plotEl.querySelectorAll(".pill[data-filter]").forEach(btn=>{
-    btn.addEventListener("click", ()=>{ activeFilter = btn.dataset.filter; renderPills(); renderDevices(); });
+  plotEl.querySelectorAll(".pill[data-filter]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      activeFilter = btn.dataset.filter;
+      renderPills();
+      renderDevices();
+    });
   });
+
   const addPill = document.getElementById("pill-add");
-  if (addPill) addPill.addEventListener("click", ()=> openSheet("overlay-plot"));
+  if (addPill) addPill.addEventListener("click", () => openSheet("overlay-plot"));
 }
 
-// ---------- Device rendering ----------
-function scopedDevices(){
-  // Normal users only ever see devices they own; admin/superadmin see everything.
-  if (currentUser && currentUser.role === "user"){
-    return devices.filter(d => d.ownerId === currentUser.id);
-  }
-  return devices;
-}
-
-function deviceMatchesFilter(d){
+function deviceMatchesFilter(d) {
   if (activeFilter === "All") return true;
   if (activeFilter === "Pump" || activeFilter === "Valve") return d.type === activeFilter;
   if (activeFilter.startsWith("plot:")) return d.plot === Number(activeFilter.split(":")[1]);
   return true;
 }
 
-function phaseChip(letter, cls, val){
+function phaseChip(letter, cls){
   return `<div class="phase-chip"><span class="phase-dot ${cls}"></span>${letter}</div>`;
 }
 
-function deviceCard(d){
+// ---------- Device Card Component ----------
+function deviceCard(d) {
   const isPump = d.type === "Pump";
   const iconSvg = isPump
     ? `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="7" stroke="#2F6B4F" stroke-width="1.8"/><path d="M12 8v4l3 2" stroke="#2F6B4F" stroke-width="1.8" stroke-linecap="round"/></svg>`
     : `<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 12h6M14 12h6M10 12l2-2 2 2-2 2-2-2z" stroke="#3E7CB1" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
+  const owner = users.find(u => u.id === d.ownerId);
+  const showDelete = canDeleteDevice(d);
+
   return `
-  <div class="device-card ${d.fault ? 'fault' : ''}" data-id="${d._id}">
+  <div class="device-card ${d.fault ? 'fault' : ''}">
     <div class="device-top">
       <div class="device-id-block">
-        <div class="device-icon ${isPump?'':'valve'}">${iconSvg}</div>
+        <div class="device-icon ${isPump ? '' : 'valve'}">${iconSvg}</div>
         <div>
           <div class="device-name">${d.name}</div>
-          <div class="device-farm">Farm : ${d.hub}</div>
+          <div class="device-farm">Hub: ${d.hub}</div>
         </div>
       </div>
       <div class="device-right">
-        ${d.batteryLevel != null ? `<div class="battery-chip">⚡ ${d.batteryLevel}%</div>` : `<div class="device-time">${d.mins} min timer</div>`}
+        <div style="display:flex; align-items:center; gap:8px;">
+          ${d.batteryLevel != null ? `<div class="battery-chip">⚡ ${d.batteryLevel}%</div>` : `<div class="device-time">${d.mins} min</div>`}
+          ${showDelete ? `
+            <button class="sched-del" data-delete-dev="${d._id}" title="Delete Device" style="width:28px; height:28px; padding:0;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            </button>` : ''}
+        </div>
         <button class="toggle ${d.on?'on':''}" ${d.online ? '' : 'disabled'} data-toggle="${d._id}"></button>
       </div>
     </div>
@@ -133,9 +333,9 @@ function deviceCard(d){
       <div>
         <div class="status-line">
           <span class="status-dot ${d.online?'online':'offline'}"></span>
-          Status : ${d.online ? 'Online' : 'Offline'}
+          Status: ${d.online ? 'Online' : 'Offline'}
         </div>
-        ${d.current ? `<div class="current-line">Current : ${d.current}</div>` : `<div class="current-line">Plot ${d.plot ?? '—'}</div>`}
+        <div class="current-line">Plot: ${d.plot ?? '—'} | Operator: ${owner ? owner.fullName : 'Unassigned'}</div>
       </div>
       ${d.voltages ? `
       <div class="phase-chips">
@@ -151,42 +351,326 @@ function deviceCard(d){
         <span class="voltage-chip">B ${d.voltages.b}</span>
       </div>` : ''}
 
-      <div class="fault-row">
-        <span class="id-tag">ID : ${d._id.slice(-7)}</span>
-        ${d.fault ? `<span class="fault-tag">FAULT</span>` : `<span class="id-tag">No faults</span>`}
+      <div class="fault-row" style="border-top: 1px dashed var(--hairline); padding-top: 8px; margin-top: 8px;">
+        <div style="line-height: 1.3;">
+          <div style="font-size: 11px; font-weight:700; color:var(--sky); font-family:monospace;">${d.brokerClId}</div>
+          <div style="font-size: 9.5px; color:var(--muted); font-family:monospace;">CL: ${d.clId} | DV: ${d.dvId}</div>
+          <div style="font-size: 9px; color:#859086; font-family:monospace;">sub: device/${d.clId}/${d.dvId}/#</div>
+        </div>
+        ${d.fault ? `<span class="fault-tag">FAULT</span>` : `<span class="id-tag" style="color:var(--primary); font-weight:bold;">Active</span>`}
       </div>
     </div>
   </div>`;
 }
 
-function renderDevices(){
+function renderDevices() {
   const list = document.getElementById("device-list");
   const filtered = scopedDevices().filter(deviceMatchesFilter);
-  if (filtered.length === 0){
+  if (filtered.length === 0) {
     list.innerHTML = `
       <div class="empty-state">
         <div class="glyph">🌱</div>
-        <h3>No controls here yet</h3>
-        <p>Tap the + pill above to add a pump or valve to this plot.</p>
+        <h3>No devices available</h3>
+        <p>No pumps or valves found for this account/plot.</p>
       </div>`;
     return;
   }
   list.innerHTML = filtered.map(deviceCard).join("");
-  list.querySelectorAll("[data-toggle]").forEach(btn=>{
-    btn.addEventListener("click", ()=> toggleDevice(btn.dataset.toggle));
+  list.querySelectorAll("[data-toggle]").forEach(btn => {
+    btn.addEventListener("click", () => toggleDevice(btn.dataset.toggle));
+  });
+  list.querySelectorAll("[data-delete-dev]").forEach(btn => {
+    btn.addEventListener("click", () => deleteDevice(btn.dataset.deleteDev));
   });
 }
 
-function toggleDevice(id){
+// ---------- Live MQTT Simulation on Toggle ----------
+function toggleDevice(id) {
   const d = devices.find(x => x._id === id);
   if (!d || !d.online) return;
-  // Optimistic UI update, mirroring: POST /api/devices/:id/toggle { on: boolean }
-  d.on = !d.on;
+
+  const targetState = !d.on;
+  const publishTopic = `backend/${d.clId}/${d.dvId}/cmd`;
+  const publishPayload = { action: "SET_POWER", state: targetState ? "ON" : "OFF", timestamp: Date.now() };
+  logMqtt("PUB", publishTopic, publishPayload);
+
+  d.on = targetState;
   renderDevices();
-  showToast(`${d.name} turned ${d.on ? "on" : "off"}`);
+  showToast(`Command sent: ${targetState ? "ON" : "OFF"}`);
+
+  setTimeout(() => {
+    const responseTopic = `device/${d.clId}/${d.dvId}/cmd/result`;
+    const responsePayload = { status: "SUCCESS", state: targetState ? "ON" : "OFF", dvId: d.dvId };
+    logMqtt("SUB", responseTopic, responsePayload);
+  }, 450);
 }
 
-// ---------- Schedule rendering ----------
+// ---------- Management Lists (Users & Plots) ----------
+function renderUserManagementList() {
+  const container = document.getElementById("user-management-list");
+  if (!container) return;
+
+  let manageableUsers = [];
+  if (currentUser.role === "superadmin") {
+    manageableUsers = users.filter(u => u.id !== currentUser.id);
+  } else if (currentUser.role === "admin") {
+    manageableUsers = users.filter(u => u.clId === currentUser.clId && u.role === "user");
+  }
+
+  if (manageableUsers.length === 0) {
+    container.innerHTML = `<div style="font-size:12px; color:var(--muted); padding:4px 0;">No manageable users found.</div>`;
+    return;
+  }
+
+  container.innerHTML = manageableUsers.map(u => `
+    <div style="display:flex; justify-content:space-between; align-items:center; background:var(--paper); padding:8px 12px; border-radius:10px; border:1px solid var(--hairline);">
+      <div>
+        <div style="font-weight:700; font-size:12.5px;">${u.fullName} <span class="role-badge ${u.role}">${u.role}</span></div>
+        <div style="font-size:11px; color:var(--muted);">${u.clId || 'Global'} · @${u.username}</div>
+      </div>
+      <button class="sched-del" data-delete-user="${u.id}" style="width:26px; height:26px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  `).join("");
+
+  container.querySelectorAll("[data-delete-user]").forEach(btn => {
+    btn.addEventListener("click", () => deleteUser(btn.dataset.deleteUser));
+  });
+}
+
+function renderPlotsManagementList() {
+  const container = document.getElementById("plots-management-list");
+  if (!container) return;
+
+  const manageablePlots = scopedPlots();
+  if (manageablePlots.length === 0) {
+    container.innerHTML = `<div style="font-size:12px; color:var(--muted); padding:4px 0;">No plots created yet.</div>`;
+    return;
+  }
+
+  container.innerHTML = manageablePlots.map(p => `
+    <div style="display:flex; justify-content:space-between; align-items:center; background:var(--paper); padding:8px 12px; border-radius:10px; border:1px solid var(--hairline);">
+      <div>
+        <div style="font-weight:700; font-size:12.5px;">Plot ${p.plotId}: ${p.name}</div>
+        <div style="font-size:11px; color:var(--muted);">${p.clId}</div>
+      </div>
+      <button class="sched-del" data-delete-plot="${p.plotId}" data-plot-clid="${p.clId}" style="width:26px; height:26px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  `).join("");
+
+  container.querySelectorAll("[data-delete-plot]").forEach(btn => {
+    btn.addEventListener("click", () => deletePlot(Number(btn.dataset.deletePlot), btn.dataset.plotClid));
+  });
+}
+
+// ---------- Registration Modal ----------
+function initRegisterModal() {
+  const clientGroup = document.getElementById("reg-client-group");
+  const clientSelect = document.getElementById("reg-client");
+  const roleSelect = document.getElementById("reg-role");
+
+  if (currentUser.role === "superadmin") {
+    clientGroup.style.display = "block";
+    clientSelect.innerHTML = clients.map(c => `<option value="${c.clId}">${c.name} (${c.clId})</option>`).join("");
+    roleSelect.innerHTML = `
+      <option value="user">Normal User</option>
+      <option value="admin">Admin</option>
+    `;
+  } else {
+    clientGroup.style.display = "none";
+    roleSelect.innerHTML = `<option value="user">Normal User</option>`;
+  }
+}
+
+document.getElementById("reg-cancel").addEventListener("click", () => closeSheet("overlay-register"));
+document.getElementById("reg-save").addEventListener("click", () => {
+  const name = document.getElementById("reg-name").value.trim();
+  const username = document.getElementById("reg-username").value.trim().toLowerCase();
+  const password = document.getElementById("reg-password").value;
+  const role = document.getElementById("reg-role").value;
+
+  if (!name || !username || !password) {
+    showToast("Please fill in all registration fields.");
+    return;
+  }
+  if (credentials[username]) {
+    showToast("Username already exists.");
+    return;
+  }
+
+  const assignedClientId = (currentUser.role === "superadmin")
+    ? document.getElementById("reg-client").value
+    : currentUser.clId;
+
+  const newUser = {
+    id: "U" + (1000 + users.length + 1),
+    fullName: name,
+    username,
+    role,
+    brokerId: currentUser.brokerId,
+    clId: assignedClientId
+  };
+
+  users.push(newUser);
+  credentials[username] = password;
+
+  showToast(`${roleLabels[role]} "${name}" created.`);
+  closeSheet("overlay-register");
+  renderUserManagementList();
+
+  document.getElementById("reg-name").value = "";
+  document.getElementById("reg-username").value = "";
+  document.getElementById("reg-password").value = "";
+});
+
+// ---------- Plot Modal ----------
+function initPlotModal() {
+  const clientGroup = document.getElementById("plot-client-group");
+  const clientSelect = document.getElementById("plot-client");
+
+  if (currentUser.role === "superadmin") {
+    clientGroup.style.display = "block";
+    clientSelect.innerHTML = clients.map(c => `<option value="${c.clId}">${c.name} (${c.clId})</option>`).join("");
+  } else {
+    clientGroup.style.display = "none";
+  }
+}
+
+document.getElementById("plot-cancel").addEventListener("click", () => closeSheet("overlay-plot"));
+document.getElementById("plot-save").addEventListener("click", () => {
+  const plotNum = Number(document.getElementById("plot-id").value);
+  const plotName = document.getElementById("plot-name").value.trim() || `Plot ${plotNum}`;
+
+  if (!plotNum) {
+    showToast("Please enter a valid plot number.");
+    return;
+  }
+
+  const targetClientId = (currentUser.role === "superadmin")
+    ? document.getElementById("plot-client").value
+    : currentUser.clId;
+
+  plots.push({
+    plotId: plotNum,
+    name: plotName,
+    clId: targetClientId
+  });
+
+  showToast(`Plot ${plotNum} created for ${targetClientId}`);
+  closeSheet("overlay-plot");
+  renderPills();
+  renderPlotsManagementList();
+
+  document.getElementById("plot-id").value = "";
+  document.getElementById("plot-name").value = "";
+});
+
+// ---------- Device Modal ----------
+let pendingDvId = "";
+let pendingBrokerClId = "";
+let newDeviceType = "Valve";
+
+function updateControlModalFields() {
+  const targetClientId = (currentUser.role === "superadmin")
+    ? document.getElementById("ctrl-client").value
+    : currentUser.clId;
+
+  const clientUsers = users.filter(u => u.clId === targetClientId && u.role === "user");
+  const clientPlots = plots.filter(p => p.clId === targetClientId);
+
+  const ownerSelect = document.getElementById("ctrl-owner");
+  ownerSelect.innerHTML = clientUsers.length
+    ? clientUsers.map(u => `<option value="${u.id}">${u.fullName} (@${u.username})</option>`).join("")
+    : `<option value="">No users under this client</option>`;
+
+  const plotSelect = document.getElementById("ctrl-plot");
+  plotSelect.innerHTML = clientPlots.length
+    ? clientPlots.map(p => `<option value="${p.plotId}">Plot ${p.plotId} — ${p.name}</option>`).join("")
+    : `<option value="">No plots created yet</option>`;
+
+  const clientDeviceCount = devices.filter(d => d.clId === targetClientId).length;
+  pendingDvId = generateDeviceId();
+  pendingBrokerClId = generateBrokerClientId(targetClientId, clientDeviceCount + 1);
+
+  document.getElementById("preview-dvid").textContent = pendingDvId;
+  document.getElementById("preview-brokerclid").textContent = pendingBrokerClId;
+}
+
+function initControlModal() {
+  const clientGroup = document.getElementById("ctrl-client-group");
+  const clientSelect = document.getElementById("ctrl-client");
+
+  if (currentUser.role === "superadmin") {
+    clientGroup.style.display = "block";
+    clientSelect.innerHTML = clients.map(c => `<option value="${c.clId}">${c.name} (${c.clId})</option>`).join("");
+    clientSelect.onchange = updateControlModalFields;
+  } else {
+    clientGroup.style.display = "none";
+  }
+
+  updateControlModalFields();
+}
+
+document.querySelectorAll('#overlay-control .seg-btn').forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll('#overlay-control .seg-btn').forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    newDeviceType = btn.dataset.type;
+    document.getElementById("ctrl-name").placeholder = `e.g. ${newDeviceType} 1`;
+  });
+});
+
+document.getElementById("ctrl-online-toggle").addEventListener("click", function(){ this.classList.toggle("on"); });
+document.getElementById("ctrl-on-toggle").addEventListener("click", function(){ this.classList.toggle("on"); });
+document.getElementById("ctrl-cancel").addEventListener("click", () => closeSheet("overlay-control"));
+
+document.getElementById("ctrl-save").addEventListener("click", () => {
+  const targetClientId = (currentUser.role === "superadmin")
+    ? document.getElementById("ctrl-client").value
+    : currentUser.clId;
+
+  const ownerId = document.getElementById("ctrl-owner").value;
+  const plotVal = document.getElementById("ctrl-plot").value;
+  const name = document.getElementById("ctrl-name").value.trim() || `${newDeviceType} - New`;
+  const hub = document.getElementById("ctrl-hub").value.trim() || "Main Farm Hub";
+  const mins = Number(document.getElementById("ctrl-mins").value) || 15;
+  const online = document.getElementById("ctrl-online-toggle").classList.contains("on");
+  const on = document.getElementById("ctrl-on-toggle").classList.contains("on");
+
+  const newDevice = {
+    _id: "dev_" + Math.random().toString(36).slice(2, 9),
+    clId: targetClientId,
+    dvId: pendingDvId,
+    brokerClId: pendingBrokerClId,
+    brokerId: currentUser.brokerId,
+    ownerId: ownerId || null,
+    type: newDeviceType,
+    name,
+    hub,
+    plot: plotVal ? Number(plotVal) : null,
+    mins,
+    online,
+    on,
+    batteryLevel: newDeviceType === "Pump" ? 85 : null,
+    voltages: newDeviceType === "Pump" ? { r: "220 V", y: "225 V", b: "220 V" } : null,
+    current: newDeviceType === "Pump" ? "5 A" : null,
+    fault: false
+  };
+
+  devices.unshift(newDevice);
+  renderPills();
+  renderDevices();
+  closeSheet("overlay-control");
+  showToast(`Registered ${newDevice.name} (${newDevice.brokerClId})`);
+
+  document.getElementById("ctrl-name").value = "";
+  document.getElementById("ctrl-hub").value = "";
+});
+
+// ---------- Schedules Screen ----------
 function scheduleCard(s){
   return `
   <div class="sched-card" data-status="${s.status}" data-id="${s._id}">
@@ -203,163 +687,48 @@ function scheduleCard(s){
       </div>
     </div>
     <div class="sched-meta">
-      <div>${s.status === 'Upcoming' ? 'From' : 'Started'}<strong>${fmtDate(s.startAt)} • ${fmtTime(s.startAt)}</strong></div>
-      <div>${s.status === 'Upcoming' ? 'To' : 'Ends at'}<strong>${fmtDate(s.endAt)} • ${fmtTime(s.endAt)}</strong></div>
-      <div>Duration<strong>${s.durationMin.toFixed(2)} Min</strong></div>
+      <div>${s.status === 'Upcoming' ? 'From' : 'Started'}<strong>${s.startAt.slice(11,16)}</strong></div>
+      <div>${s.status === 'Upcoming' ? 'To' : 'Ends at'}<strong>${s.endAt.slice(11,16)}</strong></div>
+      <div>Duration<strong>${s.durationMin.toFixed(0)} Min</strong></div>
     </div>
     <div class="sched-tank">${s.meta?.notes ?? ''}</div>
-    ${s.status !== 'Upcoming' ? `<div class="sched-progress"><span style="width:${s.progress}%"></span></div>` : ''}
   </div>`;
 }
 
 function renderSchedules(){
   const list = document.getElementById("schedule-list");
+  if (!list) return;
   if (schedules.length === 0){
     list.innerHTML = `
       <div class="empty-state">
         <div class="glyph">🗓️</div>
         <h3>Nothing scheduled</h3>
-        <p>Add a watering schedule and it'll show up here.</p>
+        <p>Add a schedule to track run times.</p>
       </div>`;
     return;
   }
   list.innerHTML = schedules.map(scheduleCard).join("");
   list.querySelectorAll("[data-del]").forEach(btn=>{
-    btn.addEventListener("click", ()=> deleteSchedule(btn.dataset.del));
+    btn.addEventListener("click", ()=> {
+      const idx = schedules.findIndex(s => s._id === btn.dataset.del);
+      if (idx !== -1) {
+        schedules.splice(idx, 1);
+        renderSchedules();
+        showToast("Schedule removed");
+      }
+    });
   });
 }
 
-function deleteSchedule(id){
-  // Optimistic remove, mirroring: DELETE /api/schedules/:id
-  const idx = schedules.findIndex(s => s._id === id);
-  if (idx === -1) return;
-  const [removed] = schedules.splice(idx, 1);
-  renderSchedules();
-  showToast(`Deleted "${removed.title}"`);
-}
-
-// ---------- Bottom nav ----------
-const navButtons = document.querySelectorAll(".nav-btn");
-navButtons.forEach(btn=>{
-  btn.addEventListener("click", ()=>{
-    navButtons.forEach(b=>b.classList.remove("active"));
-    btn.classList.add("active");
-    const target = btn.dataset.nav;
-
-    document.getElementById("screen-manual").classList.remove("visible");
-    document.getElementById("screen-schedule").classList.remove("visible");
-    plotEl.style.display = "flex";
-
-    if (target === "manual"){
-      document.getElementById("screen-manual").classList.add("visible");
-      heroTitle.textContent = "Manual Control";
-    } else if (target === "schedule"){
-      document.getElementById("screen-schedule").classList.add("visible");
-      heroTitle.textContent = "Time Schedule";
-      plotEl.style.display = "none";
-    } else if (target === "sensor"){
-      document.getElementById("screen-manual").classList.add("visible");
-      heroTitle.textContent = "Sensor Data";
-      plotEl.style.display = "none";
-      showToast("Sensor Data screen — not wired up in this prototype");
-    } else {
-      document.getElementById("screen-manual").classList.add("visible");
-      heroTitle.textContent = "Activity";
-      plotEl.style.display = "none";
-      showToast("Activity screen — not wired up in this prototype");
-    }
-    refreshFabVisibility();
-  });
-});
-
-// ---------- Toast ----------
-let toastTimer;
-function showToast(msg){
-  const t = document.getElementById("toast");
-  t.textContent = msg;
-  t.classList.add("show");
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(()=> t.classList.remove("show"), 2200);
-}
-
-// ---------- Sheets (modals) ----------
-function openSheet(id){ document.getElementById(id).classList.add("open"); }
-function closeSheet(id){ document.getElementById(id).classList.remove("open"); }
-
-document.querySelectorAll(".sheet-overlay").forEach(ov=>{
-  ov.addEventListener("click", (e)=>{ if (e.target === ov) ov.classList.remove("open"); });
-});
-
-// Add Control sheet
-let newDeviceType = "Valve";
-document.querySelectorAll('#overlay-control .seg-btn').forEach(btn=>{
-  btn.addEventListener("click", ()=>{
-    document.querySelectorAll('#overlay-control .seg-btn').forEach(b=>b.classList.remove("active"));
-    btn.classList.add("active");
-    newDeviceType = btn.dataset.type;
-    document.getElementById("ctrl-name").placeholder = `e.g. ${newDeviceType} - 3`;
-  });
-});
-document.getElementById("ctrl-online-toggle").addEventListener("click", function(){ this.classList.toggle("on"); });
-document.getElementById("ctrl-on-toggle").addEventListener("click", function(){ this.classList.toggle("on"); });
-document.getElementById("ctrl-cancel").addEventListener("click", ()=> closeSheet("overlay-control"));
-
-document.getElementById("ctrl-save").addEventListener("click", ()=>{
-  const name = document.getElementById("ctrl-name").value.trim() || `${newDeviceType} - New`;
-  const hub = document.getElementById("ctrl-hub").value.trim() || "Unassigned Hub";
-  const plotVal = document.getElementById("ctrl-plot").value;
-  const mins = Number(document.getElementById("ctrl-mins").value) || 15;
-  const online = document.getElementById("ctrl-online-toggle").classList.contains("on");
-  const on = document.getElementById("ctrl-on-toggle").classList.contains("on");
-
-  // Mirrors POST /api/devices payload from the doc
-  const newDevice = {
-    _id: "id_" + Math.random().toString(36).slice(2, 10),
-    type: newDeviceType,
-    name, hub,
-    plot: plotVal ? Number(plotVal) : null,
-    mins, online, on,
-    batteryLevel: newDeviceType === "Pump" ? Math.floor(40 + Math.random()*55) : null,
-    voltages: newDeviceType === "Pump" ? { r: "219 V", y: "230 V", b: "213 V" } : null,
-    current: newDeviceType === "Pump" ? "5 A" : null,
-    fault: false,
-  };
-  devices.unshift(newDevice);
-  renderPills(); renderDevices();
-  closeSheet("overlay-control");
-  showToast(`${newDevice.name} added`);
-
-  // reset form
-  document.getElementById("ctrl-name").value = "";
-  document.getElementById("ctrl-hub").value = "";
-  document.getElementById("ctrl-plot").value = "";
-  document.getElementById("ctrl-mins").value = 15;
-});
-
-// Add Plot sheet
-document.getElementById("plot-cancel").addEventListener("click", ()=> closeSheet("overlay-plot"));
-document.getElementById("plot-save").addEventListener("click", ()=>{
-  const rawId = document.getElementById("plot-id").value.trim();
-  const plotId = Number((rawId.match(/\d+/) || [null])[0]);
-  const plotName = document.getElementById("plot-name").value.trim() || "New Plot";
-  if (!plotId){ showToast("Enter a valid plot ID"); return; }
-  showToast(`Plot "${plotName}" (ID ${plotId}) added`);
-  document.getElementById("plot-name").value = "";
-  document.getElementById("plot-id").value = "";
-  closeSheet("overlay-plot");
-  renderPills();
-});
-
-// Add Schedule sheet
-document.getElementById("btn-add-schedule").addEventListener("click", ()=>{
+document.getElementById("btn-add-schedule")?.addEventListener("click", ()=>{
   const sel = document.getElementById("sch-device");
-  sel.innerHTML = devices.map(d => `<option value="${d._id}">${d.name} — ${d.hub}</option>`).join("");
+  sel.innerHTML = scopedDevices().map(d => `<option value="${d._id}">${d.name} (${d.brokerClId})</option>`).join("");
   const dt = new Date(Date.now() + 30*60000);
   document.getElementById("sch-start").value = dt.toISOString().slice(0,16);
   openSheet("overlay-schedule");
 });
-document.getElementById("sch-cancel").addEventListener("click", ()=> closeSheet("overlay-schedule"));
-document.getElementById("sch-save").addEventListener("click", ()=>{
+document.getElementById("sch-cancel")?.addEventListener("click", ()=> closeSheet("overlay-schedule"));
+document.getElementById("sch-save")?.addEventListener("click", ()=>{
   const deviceId = document.getElementById("sch-device").value;
   const device = devices.find(d => d._id === deviceId);
   const title = document.getElementById("sch-title").value.trim() || `${device?.hub ?? 'Plot'} / ${device?.type ?? 'Pump'}`;
@@ -368,163 +737,146 @@ document.getElementById("sch-save").addEventListener("click", ()=>{
   const startAt = startVal ? new Date(startVal).toISOString() : new Date().toISOString();
   const endAt = new Date(new Date(startAt).getTime() + mins*60000).toISOString();
 
-  // Mirrors POST /api/schedules payload from the doc
-  const newSchedule = {
-    _id: "sch_" + Math.random().toString(36).slice(2, 10),
+  schedules.unshift({
+    _id: "sch_" + Math.random().toString(36).slice(2, 9),
     deviceId, deviceType: device?.type ?? "Pump",
     title, farm: device?.hub ?? "—", plot: device?.plot ?? null,
     status: "Upcoming", startAt, endAt, durationMin: mins,
     meta: { notes: "" }, progress: 0,
-  };
-  schedules.unshift(newSchedule);
+  });
   renderSchedules();
   closeSheet("overlay-schedule");
-  showToast("Schedule added");
+  showToast("Schedule saved");
   document.getElementById("sch-title").value = "";
 });
 
-// ---------- Floating add-control button ----------
-const fab = document.getElementById("fab-add-control");
-fab.addEventListener("click", ()=> openSheet("overlay-control"));
-
-function refreshFabVisibility(){
-  const manualVisible = document.getElementById("screen-manual").classList.contains("visible");
-  fab.style.display = (manualVisible && canManagePlots()) ? "flex" : "none";
+// ---------- Sheet System & Navigation ----------
+function openSheet(id) {
+  if (id === "overlay-register") initRegisterModal();
+  if (id === "overlay-plot") initPlotModal();
+  if (id === "overlay-control") initControlModal();
+  document.getElementById(id).classList.add("open");
+}
+function closeSheet(id) {
+  document.getElementById(id).classList.remove("open");
 }
 
-// ---------- Account sheet ----------
-document.getElementById("btn-account").addEventListener("click", ()=>{
+document.querySelectorAll(".sheet-overlay").forEach(ov => {
+  ov.addEventListener("click", (e) => { if (e.target === ov) ov.classList.remove("open"); });
+});
+
+const navButtons = document.querySelectorAll(".nav-btn");
+navButtons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    navButtons.forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    const target = btn.dataset.nav;
+
+    document.getElementById("screen-manual").classList.remove("visible");
+    document.getElementById("screen-schedule").classList.remove("visible");
+    plotEl.style.display = "flex";
+
+    if (target === "manual") {
+      document.getElementById("screen-manual").classList.add("visible");
+      heroTitle.textContent = "Manual Control";
+    } else if (target === "schedule") {
+      document.getElementById("screen-schedule").classList.add("visible");
+      heroTitle.textContent = "Time Schedule";
+      plotEl.style.display = "none";
+    }
+    refreshFabVisibility();
+  });
+});
+
+const fab = document.getElementById("fab-add-control");
+fab.addEventListener("click", () => openSheet("overlay-control"));
+
+function refreshFabVisibility() {
+  const manualVisible = document.getElementById("screen-manual").classList.contains("visible");
+  fab.style.display = (manualVisible && canManageResources()) ? "flex" : "none";
+}
+
+// Account Sheet Open
+document.getElementById("btn-account").addEventListener("click", () => {
   document.getElementById("acct-initials").textContent =
-    currentUser.fullName.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+    currentUser.fullName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
   document.getElementById("acct-name").textContent = currentUser.fullName;
+  
   const roleBadge = document.getElementById("acct-role");
   roleBadge.textContent = roleLabels[currentUser.role];
   roleBadge.className = "role-badge " + currentUser.role;
 
   const scopeNote = document.getElementById("scope-note");
-  const lookupSection = document.getElementById("lookup-section");
-  const registerSection = document.getElementById("register-section");
+  const manageUserSec = document.getElementById("manage-users-section");
+  const managePlotSec = document.getElementById("manage-plots-section");
 
-  if (currentUser.role === "superadmin"){
-    scopeNote.textContent = "As Super Admin, you can view any user's data by ID and register Super Admin, Admin, or Normal User accounts.";
-    lookupSection.style.display = "block";
-    registerSection.style.display = "block";
-  } else if (currentUser.role === "admin"){
-    scopeNote.textContent = "As Admin, you can view any user's data by ID and register new Normal User accounts. You can also add plots.";
-    lookupSection.style.display = "block";
-    registerSection.style.display = "block";
+  if (currentUser.role === "superadmin") {
+    scopeNote.textContent = `Super Admin (${currentUser.brokerId}) — Global access across all client farms.`;
+    manageUserSec.style.display = "block";
+    managePlotSec.style.display = "block";
+    renderUserManagementList();
+    renderPlotsManagementList();
+  } else if (currentUser.role === "admin") {
+    scopeNote.textContent = `Client Admin (${currentUser.clId}) — Full control of plots, devices, and operators.`;
+    manageUserSec.style.display = "block";
+    managePlotSec.style.display = "block";
+    renderUserManagementList();
+    renderPlotsManagementList();
   } else {
-    scopeNote.textContent = "You're viewing only your own devices. Contact an admin for account or plot changes.";
-    lookupSection.style.display = "none";
-    registerSection.style.display = "none";
+    scopeNote.textContent = `Operator (${currentUser.clId}) — Viewing only your assigned controls.`;
+    manageUserSec.style.display = "none";
+    managePlotSec.style.display = "none";
   }
-  document.getElementById("lookup-id").value = "";
-  document.getElementById("lookup-result").innerHTML = "";
+
   openSheet("overlay-account");
 });
 
-document.getElementById("btn-logout").addEventListener("click", ()=>{
+document.getElementById("btn-open-register").addEventListener("click", () => {
+  closeSheet("overlay-account");
+  openSheet("overlay-register");
+});
+
+document.getElementById("btn-logout").addEventListener("click", () => {
   closeSheet("overlay-account");
   currentUser = null;
   document.getElementById("login-username").value = "";
   document.getElementById("login-password").value = "";
-  document.getElementById("login-error").classList.remove("show");
   document.getElementById("login-overlay").style.display = "flex";
 });
 
-// ---------- Lookup user data by ID (admin / superadmin) ----------
-document.getElementById("lookup-btn").addEventListener("click", ()=>{
-  const raw = document.getElementById("lookup-id").value.trim().toUpperCase();
-  const result = document.getElementById("lookup-result");
-  if (!raw){ result.innerHTML = ""; return; }
-  const found = users.find(u => u.id.toUpperCase() === raw);
-  if (!found){
-    result.innerHTML = `<div class="lookup-result-card">No user found with ID "${raw}".</div>`;
-    return;
-  }
-  const ownedDevices = devices.filter(d => d.ownerId === found.id);
-  result.innerHTML = `
-    <div class="lookup-result-card">
-      <div class="lr-name">${found.fullName} <span class="role-badge ${found.role}" style="margin-left:4px;">${roleLabels[found.role]}</span></div>
-      <div class="lr-row">ID: ${found.id}</div>
-      <div class="lr-row">${found.email} · ${found.phone}</div>
-      <div class="lr-row">${ownedDevices.length} device(s): ${ownedDevices.map(d=>d.name).join(", ") || "none"}</div>
-    </div>`;
-});
-
-// ---------- Register user (superadmin: all roles / admin: normal user only) ----------
-document.getElementById("btn-open-register").addEventListener("click", ()=>{
-  const roleSelect = document.getElementById("reg-role");
-  if (currentUser.role === "superadmin"){
-    roleSelect.innerHTML = `
-      <option value="user">Normal User</option>
-      <option value="admin">Admin</option>
-      <option value="superadmin">Super Admin</option>`;
-  } else {
-    roleSelect.innerHTML = `<option value="user">Normal User</option>`;
-  }
-  closeSheet("overlay-account");
-  openSheet("overlay-register");
-});
-document.getElementById("reg-cancel").addEventListener("click", ()=> closeSheet("overlay-register"));
-
-document.getElementById("reg-save").addEventListener("click", ()=>{
-  const fullName = document.getElementById("reg-name").value.trim();
-  const email = document.getElementById("reg-email").value.trim();
-  const phone = document.getElementById("reg-phone").value.trim();
-  const password = document.getElementById("reg-password").value;
-  const role = document.getElementById("reg-role").value;
-
-  if (!fullName || !email || !password){
-    showToast("Full name, email, and password are required");
-    return;
-  }
-  // Admins may only ever create Normal User accounts, even if the form were tampered with.
-  const finalRole = currentUser.role === "admin" ? "user" : role;
-
-  const newUser = {
-    id: "U" + (1000 + users.length + 1),
-    fullName, email, phone, role: finalRole,
-  };
-  users.push(newUser);
-  showToast(`${roleLabels[finalRole]} "${fullName}" registered (ID ${newUser.id})`);
-  closeSheet("overlay-register");
-
-  ["reg-name","reg-email","reg-phone","reg-password"].forEach(id => document.getElementById(id).value = "");
-});
-
-// ---------- Login ----------
-function attemptLogin(){
+// ---------- Login Handlers ----------
+function attemptLogin() {
   const username = document.getElementById("login-username").value.trim().toLowerCase();
   const password = document.getElementById("login-password").value;
   const errorBox = document.getElementById("login-error");
 
-  const cred = credentials[username];
-  if (!cred || cred.password !== password){
-    errorBox.textContent = "Incorrect username or password.";
+  if (!credentials[username] || credentials[username] !== password) {
+    errorBox.textContent = "Invalid username or password.";
     errorBox.classList.add("show");
     return;
   }
-  const account = users.find(u => u.id === cred.userId);
-  currentUser = { id: account.id, fullName: account.fullName, role: account.role };
+
+  currentUser = users.find(u => u.username === username);
   errorBox.classList.remove("show");
   document.getElementById("login-overlay").style.display = "none";
 
-  // Reset to Manual Control on every fresh login
-  navButtons.forEach(b=>b.classList.remove("active"));
-  document.querySelector('.nav-btn[data-nav="manual"]').classList.add("active");
-  document.getElementById("screen-manual").classList.add("visible");
-  document.getElementById("screen-schedule").classList.remove("visible");
-  heroTitle.textContent = "Manual Control";
-  plotEl.style.display = "flex";
-
   renderPills();
   renderDevices();
+  renderSchedules();
   refreshFabVisibility();
-  showToast(`Signed in as ${roleLabels[currentUser.role]}`);
+  showToast(`Signed in as ${currentUser.fullName} (${roleLabels[currentUser.role]})`);
 }
-document.getElementById("login-submit").addEventListener("click", attemptLogin);
-document.getElementById("login-password").addEventListener("keydown", (e)=>{ if (e.key === "Enter") attemptLogin(); });
 
-// ---------- Init ----------
-renderSchedules();
+document.getElementById("login-submit").addEventListener("click", attemptLogin);
+document.getElementById("login-password").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") attemptLogin();
+});
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+}
